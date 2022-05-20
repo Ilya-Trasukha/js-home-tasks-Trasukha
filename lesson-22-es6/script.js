@@ -1,178 +1,127 @@
-"use strict";
-
+'use strict'
+let page = document.getElementById('page');
+let pHash = {};
 window.onhashchange = renderNewState;
-  const AjaxHandlerScript = "http://fe.it-academy.by/AjaxStringStorage2.php";
-  let articleNavList = "";
-  let articleID = "";
 
-  let articles = [
-    { title: "Aprilia", id: "aprilia" },
-    { title: "Beta", id: "beta" },
-    { title: "BMW", id: "bmw" },
-    { title: "Ducati", id: "ducati" },
-    { title: "Gasgas", id: "gasgas" },
-    { title: "Harley-Davidson", id: "harley" },
-    { title: "Honda", id: "honda" },
-    { title: "Husqvarna", id: "husqvarna" },
-    { title: "Kawasaki", id: "kawasaki" },
-    { title: "KTM", id: "ktm" },
-    { title: "Suzuki", id: "suzuki" },
-    { title: "Triumph", id: "triumph" },
-    { title: "Yamaha", id: "yamaha" },
-  ];    
-
-  function update() {
-    $.ajax({
-      url: AjaxHandlerScript,
-      type: "POST",
-      datatype: "json",
-      data: {
-        f: "READ",
-        n: "OSTROUH_ARTICLES",
-        },
-      cache: false,
-      success: motoListReady,
-      error: errorHandler,
-    })
-  }
-
-  function motoListReady(data) {
-    let articlesA = JSON.parse(data.result).sort(sortByName);
-    let capitalLetters = [];
-    articleNavList = "";
-
-      for (let i = 0; i < articlesA.length; i++) {
-        const moto_list = document.getElementById("moto_list");
-        let article = articlesA[i];
-        let firstLetter = article.title.substr(0, 1);
-        articleNavList += '<li><a id="' + article.id + '" onclick="switchToArticle()" style="text-decoration: underline; cursor: pointer;">' +
-        article.title + '</a></li>';
-            
-          if (!capitalLetters.includes(firstLetter)) {
-            capitalLetters.push(firstLetter);
-            var div = document.createElement("div");
-            const letter = document.createElement("h3");
-            letter.innerHTML = firstLetter;
-            div.appendChild(letter);
-            moto_list.appendChild(div);
-          }
-          const p = document.createElement("p");
-          const a = document.createElement("a");
-          a.style.cssText = 'text-decoration: underline; cursor: pointer;';
-          a.id = article.id;
-          a.setAttribute("onclick", "switchToArticle()");
-          a.innerHTML = article.title;
-          p.appendChild(a);
-          div.appendChild(p);
-          moto_list.appendChild(div);
-      }
-        articleNavList = '<ul>' + articleNavList + '</ul>';
-  }
-
-  function sortByName(a, b) {
-    if (a.name < b.name) return -1;
-    if (a.name > b.name) return 1;
-    return 0;
-  }
-
-  function openArticle() {
-    $.ajax({
-      url: `htmlPages/${articleID}.html`,
-      type: "GET",
-      dataType: "html",
-      success: DataLoaded,
-      error: errorHandler,
-      })
-  }
-
-  function DataLoaded(data) {
-    document.querySelector("#moto_item").innerHTML = data;
-    createArticleList();
-  }
-
-  function createArticleList() {
-    if (articleNavList === '') {
-      $.ajax({
-        url: AjaxHandlerScript,
-        type: "POST",
-        datatype: "json",
-        data: {
-          f: "READ",
-          n: "OSTROUH_ARTICLES",
-        },
-        cache: false,
-        success: function(data) {
-        let articlesA = JSON.parse(data.result).sort(sortByName);
-          for (let i = 0; i < articlesA.length; i++) {
-            let article = articlesA[i];
-            articleNavList += '<li style="cursor: pointer;"><a style="text-decoration: underline;"  id="' + article.id + '" onclick="switchToArticle()">' +
-            article.title + '</a></li>';
-          }
-            articleNavList = '<ul>' + articleNavList + '</ul>';
-
-          let sidebar = document.querySelector("#nav");
-          document.querySelector("#nav").innerHTML = articleNavList;
-        },
-          error: errorHandler,
-      })
-        }
-        let sidebar = document.querySelector("#nav");
-        document.querySelector("#nav").innerHTML = articleNavList;
-      }
-
-  function errorHandler(jqXHR, StatusStr, ErrorStr) {
-    alert(StatusStr + " " + ErrorStr);
-  }
-
-  //SPA
-  function renderNewState() {
+function renderNewState() {
     const hash = window.location.hash;
     let state = decodeURIComponent(hash.substr(1));
-    (state === "") ? state = { page: "Main" } : state = JSON.parse(state);
 
-      if (state.page !== "Main" && state.page !== "Menu" && state.page !== "") articleID = state.page;
-      let page = "";
+    if (state === '') {
+        state = { page: 'Main' };
+    } else {
+        state = JSON.parse(state);
+    }
+    document.getElementById('page').innerHTML = '';
 
-        switch (state.page) {
-          case "Main":
-            page += "<h1>Энциклопедия</h1>";
-            page +=
-              '<section id="main"><p class="main_info">В данной энциклопедии вы найдете описание наиболее' +
-              " известных марок мотоциклов</p>";
-            page +=
-              '<p class="main_info"><a style="text-decoration: underline; cursor: pointer;" onclick="switchToMenu()">Список статей здесь</a></p></section>';
+    switch (state.page) {
+        case 'Main':
+            page.appendChild(createMainPage());
             break;
-          case "Menu":
-            update();
-            page += "<h2>Оглавление</h2>";
-            page += '<section id="moto_list"></section>';
-            page +=
-              '<input id="button" type="button" style="cursor: pointer;" value="На главную" onclick="switchToMain()">';
+        case 'Сontents':
+            page.innerHTML = '<h2>Оглавление</h3>';
+            let sortHash = sortObject(pHash)
+            displayListOfArticles(sortHash, page)
             break;
-          case `${articleID}`:
-            openArticle();
-            page += '<section id="moto_item"></section>';
-            page += '<aside id="nav"></aside>';
+        default:
+            $.ajax(`${JSON.parse(decodeURIComponent(window.location.hash.substr(1))).page}.html`,
+                {
+                    type: "GET",
+                    cache: false,
+                    dataType: "html",
+                    success: function (content) {
+                        document.getElementById('wrapper').innerHTML = content;
+                    },
+                }
+            );
+            displayListOfArticles(pHash, page);
             break;
+    }
+}
+
+function switchToState(state) {
+    location.hash = encodeURIComponent(JSON.stringify(state));
+}
+function switchToMain() {
+    switchToState({ page: 'Main' });
+}
+function switchToContents() {
+    switchToState({ page: 'Сontents' });
+}
+
+renderNewState();
+
+function createMainPage() {
+    let mainPage = document.createElement('div');
+    let heading = document.createElement('p');
+    heading.innerHTML = '<h2>Энциклопедия</h3>';
+    heading.style.fontWeight = "bold";
+    let link = document.createElement('a');
+    link.textContent = "Список статей здесь";
+    link.style.textDecoration = "underline";
+    link.onclick = switchToContents;
+    mainPage.appendChild(heading);
+    mainPage.appendChild(link);
+    return mainPage;
+}
+
+function sortObject(o) {
+    return Object.keys(o).sort().reduce((r, k) => (r[k] = o[k], r), {});
+}
+
+function readValueOnTheServer() {
+
+    $.ajax("article.json",
+        {
+            type: "GET",
+            cache: false,
+            dataType: "json",
+            success: showDataFromJson,
         }
-        document.querySelector(".page").innerHTML = page;
-      }
+    );
 
-      function switchToState(state) {
-        window.location.hash = encodeURIComponent(JSON.stringify(state));
-      }
+    function showDataFromJson(data) {
+        pHash = data;
+        console.log('[showDataFromJson]', data)
+    }
+}
 
-      function switchToMain(state) {
-        switchToState({ page: "Main" });
-      }
+readValueOnTheServer()
 
-      function switchToMenu(state) {
-        switchToState({ page: "Menu" });
-      }
+function displayListOfArticles(data, box) {
+    let charCode;
+    let location = JSON.parse(decodeURIComponent(window.location.hash.substr(1))).page;
+    for (let key in data) {
+        if (location === 'Сontents') {
+            document.getElementById('content').innerHTML = ''
+            box.style.overflow = 'inherit';
+            box.style.width = '100%';
+            if (!charCode) {
+                charCode = 1040;
+                box.innerHTML += '<h3>A</h3>';
+            } else if (key.charCodeAt(0) !== charCode) {
+                charCode = key.charCodeAt(0);
+                box.innerHTML += `<h3>${String.fromCharCode(charCode)}</h3>`;
+            }
+        }
+        let a = document.createElement('a');
+        a.innerText = key;
+        a.href = `#%7B"page"%3A"${data[key]}"%7D`;
 
-      function switchToArticle(state) {
-        articleID = event.target.id;
-        switchToState({ page: `${articleID}` });
-      }
+        box.appendChild(a);
+        a.addEventListener('click', (e) => {
+            document.title = e.target.innerText;
+            $.ajax(`${data[key]}.html`,
+                {
+                    type: "GET",
+                    cache: false,
+                    dataType: "html",
+                    success: function (content) {
+                        document.getElementById('content').innerHTML = content;
 
-    renderNewState();
+                    },
+                }
+            );
+        })
+    }
+}
